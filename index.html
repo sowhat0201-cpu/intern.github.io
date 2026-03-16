@@ -9,33 +9,51 @@
             --primary: #2c3e50;
             --accent: #3498db;
             --bg: #f4f7f6;
+            --success: #27ae60;
         }
         body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); color: var(--primary); line-height: 1.6; margin: 0; padding: 20px; }
         .container { max-width: 700px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { text-align: center; color: var(--accent); }
         .intro { margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        
+        /* 姓名輸入區塊 */
+        #name-screen { text-align: center; }
+        input[type="text"] { width: 80%; padding: 12px; margin: 20px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .start-btn { background: var(--accent); color: white; border: none; cursor: pointer; text-align: center; font-weight: bold; }
+        .start-btn:hover { background: #2980b9; }
+
         .question { display: none; }
         .question.active { display: block; animation: fadeIn 0.5s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .options { list-style: none; padding: 0; }
         .options li { margin: 10px 0; }
+        
         button { width: 100%; padding: 12px; border: 1px solid var(--accent); background: white; border-radius: 8px; cursor: pointer; transition: 0.3s; font-size: 16px; text-align: left; }
-        button:hover { background: var(--accent); color: white; }
+        button:hover { background: var(--accent); color: white; transform: translateY(-2px); }
+        
         .progress { margin-bottom: 20px; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; }
-        .progress-bar { height: 100%; background: var(--accent); width: 0%; transition: 0.3s; }
-        #result { display: none; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--success)); width: 0%; transition: 0.3s; }
+        
+        #quiz-box, #result { display: none; }
         .type-box { padding: 20px; border-radius: 10px; margin-top: 20px; }
         .light { border-left: 5px solid #27ae60; background: #f0fff4; padding: 10px; margin: 10px 0; }
         .shadow { border-left: 5px solid #e74c3c; background: #fff5f5; padding: 10px; margin: 10px 0; }
         .advice { background: #ebf8ff; padding: 15px; border-radius: 8px; border: 1px dashed #3182ce; }
+        .loading-text { font-style: italic; color: #7f8c8d; font-size: 0.9em; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div id="quiz-box">
+    <div id="name-screen">
         <h1>🔍 職場實習生類型測驗</h1>
-        <div class="intro">這是一場職涯冒險。請根據第一直覺選擇最符合你的選項。</div>
+        <div class="intro">這是一場職涯冒險。在開始前，請告訴我們你的稱呼。</div>
+        <input type="text" id="user-name" placeholder="請輸入姓名或暱稱" autocomplete="off">
+        <button class="start-btn" onclick="startQuiz()" style="text-align:center;">開始探索之旅</button>
+    </div>
+
+    <div id="quiz-box">
+        <h1 id="quiz-title">測驗進行中</h1>
         <div class="progress"><div class="progress-bar" id="pb"></div></div>
         <div id="question-container"></div>
     </div>
@@ -43,11 +61,15 @@
     <div id="result">
         <h1>📊 你的職涯分身是...</h1>
         <div id="result-content"></div>
-        <button onclick="location.reload()" style="text-align:center; margin-top:20px;">重新測驗</button>
+        <div id="upload-status" class="loading-text">正在同步結果到雲端...</div>
+        <button onclick="location.reload()" style="text-align:center; margin-top:20px; background: #eee; border: none; color: #333;">重新測驗</button>
     </div>
 </div>
 
 <script>
+    // 請在此處貼上你的 Google Apps Script 網址
+    const scriptURL = '這裡替換成你的GAS網址';
+
     const questions = [
         { q: "實習第一天報到，面對全新環境與同事，你會？", a: "觀察職稱與座位建立架構圖", b: "微笑打招呼記住大家名字", c: "思考辦公室動線哪裡可以更酷", d: "安靜待在位子等待指令" },
         { q: "拿到厚厚一疊「實習生須知」，你的閱讀習慣是？", a: "直接看最後的考核標準", b: "先看福利與員工聚餐部分", c: "隨意翻閱希望有圖解版", d: "從第一頁開始認真劃重點" },
@@ -61,8 +83,8 @@
         { q: "你最喜歡的主管類型是？", a: "講求邏輯、不講廢話", b: "親切理解我感受的主管", c: "給我很大發揮空間不愛管細節", d: "指令清晰讓我很有安全感" },
         { q: "在團隊中你覺得自己最像？", a: "大腦（分析決策）", b: "心臟（聯繫感情）", c: "手腳（行動實驗）", d: "脊椎（穩定支撐）" },
         { q: "工作出錯需要「扛責」時，你的態度是？", a: "絕對負責並提交改進報告", b: "因為拖累大家而難過很久", c: "解釋動機希望大家看重初衷", d: "認錯接受處分後更加謹慎" },
-        { q: "對於職場中的「社交應酬」看法？", a: "除非對升遷有助否則浪費時間", b: "非常重要是建立默契時刻", c: "喜歡有趣討厭死板應酬", d: "覺得累只想趕快回家休息" },
-        { q: "主管稱讚你做得好，內心獨白是？", a: "我確實比別人有效率", b: "主管終於認可我了要更努力", c: "下次試更瘋狂做法讓他驚訝", d: "鬆口氣不用擔心表現不好了" },
+        { q: "對於職場中的「社交應酬」看法？", a: "除非對升遷有助否則浪費時間", b: "非常重要是建立默鍵時刻", c: "喜歡有趣討厭死板應酬", d: "覺得累只想趕快回家休息" },
+        { q: "主管稱稱讚你做得好，內心獨白是？", a: "我確實比別人有效率", b: "主管終於認可我了要更努力", c: "下次試更瘋狂做法讓他驚訝", d: "鬆口氣不用擔心表現不好了" },
         { q: "創意被主管當眾否決時？", a: "詢問理由回家優化再提", b: "覺得受挫是否我這個人有問題", c: "覺得主管沒眼光默默給他扣分", d: "喔好那我就照舊方法做" },
         { q: "發現還有很多技能沒學會，你會？", a: "整理清單找主管前輩請教", b: "結交到的朋友比技能更重要", c: "打算回家自己實驗不被限制", d: "遺憾但不敢主動要求學習" },
         { q: "在忙碌環境中，最受不了哪種同事？", a: "慢吞吞還一直出錯的人", b: "口氣差不顧別人感受的人", c: "墨守成規一點彈性都沒有的人", d: "喜怒無常指令變來變去的人" },
@@ -73,6 +95,19 @@
 
     let scores = { a: 0, b: 0, c: 0, d: 0 };
     let currentQ = 0;
+    let userName = "";
+
+    function startQuiz() {
+        const input = document.getElementById('user-name').value;
+        if (!input) {
+            alert("請輸入您的姓名以便記錄測驗結果");
+            return;
+        }
+        userName = input;
+        document.getElementById('name-screen').style.display = 'none';
+        document.getElementById('quiz-box').style.display = 'block';
+        renderQuestion();
+    }
 
     function renderQuestion() {
         if (currentQ >= questions.length) {
@@ -129,10 +164,27 @@
                        <div class='advice'><strong>💡 修煉建議：</strong>練習「主動回報」進度，不要等主管問才說。</div>`;
         }
 
-        document.getElementById('result-content').innerHTML = `<h3>你的類型：${type}</h3>${content}`;
-    }
+        document.getElementById('result-content').innerHTML = `<h3>${userName} 的類型：${type}</h3>${content}`;
 
-    renderQuestion();
+        // 傳送資料到 Google Sheet
+        if (scriptURL !== 'https://script.google.com/macros/s/AKfycbxa4bHsIL4rrJ2t-XE5FQbpM1jVcP2v9Ijbltz8zQXZkAdTdPiWHl0cDuC1Z4kmqdJSMg/exec') {
+            fetch(scriptURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-cache',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: userName,
+                    type: type,
+                    scores: scores
+                })
+            }).then(() => {
+                document.getElementById('upload-status').innerText = "✅ 結果已成功同步至老師的雲端表格";
+            }).catch(e => {
+                document.getElementById('upload-status').innerText = "❌ 雲端同步失敗，請截圖保留結果";
+            });
+        }
+    }
 </script>
 
 </body>
